@@ -720,7 +720,7 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction)
   {
     _postTransmission();
   }
-  
+ 
   // loop until we run out of time or bytes, or an error occurs
   u32StartTime = millis();
   while (u8BytesLeft && !u8MBStatus)
@@ -730,8 +730,15 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction)
 #if __MODBUSMASTER_DEBUG__
       digitalWrite(__MODBUSMASTER_DEBUG_PIN_A__, true);
 #endif
-      u8ModbusADU[u8ModbusADUSize++] = _serial->read();
-      u8BytesLeft--;
+      u8ModbusADU[u8ModbusADUSize] = _serial->read();
+      // throw away any initial bytes that don't match the slave id
+      // this isn't perfect by any means since you can still get junk that
+      // matches but it's good enough for my purposes
+      if ( u8ModbusADUSize || u8ModbusADU[u8ModbusADUSize] == _u8MBSlave )
+      {
+        u8BytesLeft--;
+        u8ModbusADUSize++ ;
+      }
 #if __MODBUSMASTER_DEBUG__
       digitalWrite(__MODBUSMASTER_DEBUG_PIN_A__, false);
 #endif
@@ -802,6 +809,12 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction)
       u8MBStatus = ku8MBResponseTimedOut;
     }
   }
+  
+  // dump out the response data
+  Serial.print("Response data: ");
+  for(i=0 ; i < u8ModbusADUSize ; i++ )
+    Serial.printf("[%02x]", u8ModbusADU[i]) ;
+  Serial.println("") ;
   
   // verify response is large enough to inspect further
   if (!u8MBStatus && u8ModbusADUSize >= 5)
