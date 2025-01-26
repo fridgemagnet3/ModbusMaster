@@ -731,11 +731,18 @@ uint8_t ModbusMaster::ModbusMasterTransaction(uint8_t u8MBFunction)
       digitalWrite(__MODBUSMASTER_DEBUG_PIN_A__, true);
 #endif
       u8ModbusADU[u8ModbusADUSize] = _serial->read();
-      // throw away any initial bytes that don't match the slave id
-      // this isn't perfect by any means since you can still get junk that
-      // matches but it's good enough for my purposes
+      // throw away any initial bytes that don't match the expected start sequence of
+      // the response
+      // first byte should be the slave
       if ( u8ModbusADUSize || u8ModbusADU[u8ModbusADUSize] == _u8MBSlave )
       {
+        // if slave looks ok, check the function code
+        if ( (u8ModbusADUSize == 1) && ((u8ModbusADU[1] & 0x7f) != u8MBFunction) )
+        {
+           u8BytesLeft = 8 ;
+           u8ModbusADUSize = 0 ;
+           continue ;
+        }
         u8BytesLeft--;
         u8ModbusADUSize++ ;
       }
